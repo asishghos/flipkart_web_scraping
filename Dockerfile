@@ -1,43 +1,17 @@
-# Use the latest Rust image
-FROM rust:1.75-slim as builder
-
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /usr/src/app
-
-# Copy manifests
-COPY Cargo.toml Cargo.lock ./
-
-# Create dummy main.rs for dependency caching
-RUN mkdir src && echo "fn main() {}" > src/main.rs
-
-# Build dependencies (this will be cached)
-RUN cargo build --release && rm src/main.rs
-
-# Copy source code
-COPY src ./src
-
-# Build the actual application
+FROM docker.io/rust:slim-bullseye as builder
+WORKDIR /usr/src/flipkart-scraper-api
+RUN apt update && apt install -y libssl-dev
+ENV DEPLOYMENT_URL localhost:3000
+ENV OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu
+ENV OPENSSL_INCLUDE_DIR=/usr/include
+COPY Cargo.toml .
+COPY ./src/ ./src
 RUN cargo build --release
 
-# Runtime stage
-FROM debian:bookworm-slim
+FROM docker.io/debian:bullseye-slim
+RUN apt update && apt install -y ca-certificates
+WORKDIR /usr/local/bin/
+COPY --from=builder /usr/src/flipkart-scraper-api/target/release/flipkart-scraper-api .
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy the binary from builder stage
-COPY --from=builder /usr/src/app/target/release/flipkart_scraper /usr/local/bin/flipkart_scraper
-
-# Expose port (adjust based on your app)
-EXPOSE 8080
-
-# Run the binary
-CMD ["flipkart_scraper"]
+CMD ["flipkart-scraper-api"]
+EXPOSE 3000
