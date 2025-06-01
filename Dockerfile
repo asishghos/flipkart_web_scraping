@@ -6,7 +6,6 @@ WORKDIR /usr/src/app
 
 # Cache dependencies
 COPY Cargo.toml Cargo.lock ./
-COPY flipkart_scraper ./flipkart_scraper
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release
 
