@@ -1,25 +1,43 @@
-# Use an official Rust image
-FROM rust:1.74-slim as builder
+# Use the latest Rust image
+FROM rust:1.75-slim as builder
 
-# Create app directory
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
-# Cache dependencies
+# Copy manifests
 COPY Cargo.toml Cargo.lock ./
+
+# Create dummy main.rs for dependency caching
 RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# Build dependencies (this will be cached)
+RUN cargo build --release && rm src/main.rs
+
+# Copy source code
+COPY src ./src
+
+# Build the actual application
 RUN cargo build --release
 
-# Copy full source and build
-COPY . .
-RUN cargo build --release
+# Runtime stage
+FROM debian:bookworm-slim
 
-# Runtime container
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/src/app/target/release/flipkart_scraper_api /usr/local/bin/flipkart_scraper_api
+# Copy the binary from builder stage
+COPY --from=builder /usr/src/app/target/release/flipkart_scraper /usr/local/bin/flipkart_scraper
 
-ENV RUST_LOG=info
-EXPOSE 3000
+# Expose port (adjust based on your app)
+EXPOSE 8080
 
-CMD ["flipkart-scraper-api"]
+# Run the binary
+CMD ["flipkart_scraper"]
