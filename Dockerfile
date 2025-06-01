@@ -23,4 +23,4 @@ COPY --from=builder /usr/src/app/target/release/flipkart_scraper_api /usr/local/
 ENV RUST_LOG=info
 EXPOSE 3000
 
-CMD ["flipkart_scraper_api"]
+CMD ["flipkart-scraper-api"]
